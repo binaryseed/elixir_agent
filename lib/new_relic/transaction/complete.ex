@@ -10,6 +10,8 @@ defmodule NewRelic.Transaction.Complete do
         %{start_time: _, start_time_mono: _, end_time_mono: _} = tx_attrs,
         pid
       ) do
+    IO.puts("}}}}} complete run")
+
     {tx_segments, tx_attrs, tx_error, span_events, apdex, tx_metrics} =
       tx_attrs
       |> transform_name_attrs
@@ -29,6 +31,8 @@ defmodule NewRelic.Transaction.Complete do
     report_caller_metric(tx_attrs)
     report_apdex_metric(apdex)
     report_span_events(span_events)
+
+    IO.puts("}}}}} complete done")
   end
 
   def run(tx_attrs, _pid) do
