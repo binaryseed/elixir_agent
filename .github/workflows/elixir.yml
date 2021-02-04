@@ -60,19 +60,4 @@ jobs:
       run: mix format --check-formatted
 
     - name: Run unit tests
-      run: mix test
-
-    - name: Start integration test dependencies
-      run: |
-        cd examples
-        docker-compose up -d
-        until pg_isready -h localhost; do sleep 1; done;
-        sleep 10
-
-    - name: Run integration tests
-      run: |
-        cd examples
-        mix deps.get
-        mix format --check-formatted
-        mix test
-        MIX_ENV=test mix instrumented_task.example_task
+      run: mix test test/sidecar_test.exs
