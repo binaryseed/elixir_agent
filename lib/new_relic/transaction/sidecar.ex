@@ -14,7 +14,7 @@ defmodule NewRelic.Transaction.Sidecar do
     # even in the case of an unexpected bug. Additionally, this
     # blocks the Transaction process the smallest amount possible
     {:ok, sidecar} = GenServer.start(__MODULE__, {self(), type})
-    IO.inspect {:start, self(), %{sidecar: sidecar}}
+    IO.inspect({:start, self(), %{sidecar: sidecar}})
 
     store_sidecar(self(), sidecar)
 
