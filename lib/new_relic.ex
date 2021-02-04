@@ -68,9 +68,8 @@ defmodule NewRelic do
 
   **Notes:**
 
-  * Don't use this to track Web Transactions - for that,
-  `use NewRelic.Transaction` in your Plug pipeline so that we can properly
-  categorize as Web Transactions in the UI.
+  * Don't use this to track Web Transactions - Plug based HTTP servers
+  are auto-instrumented based on `telemetry` events.
   * Do _not_ use this for processes that live a very long time, doing so
   will risk a memory leak tracking attributes in the transaction!
   * You can't start a new transaction within an existing one. Any process
@@ -79,7 +78,7 @@ defmodule NewRelic do
   call `NewRelic.stop_transaction()` to mark the end of the transaction.
   """
   @spec start_transaction(String.t(), String.t()) :: :ok
-  defdelegate start_transaction(category, name), to: NewRelic.Transaction
+  defdelegate start_transaction(category, name), to: NewRelic.OtherTransaction
 
   @doc """
   Stop an "Other" Transaction.
@@ -88,7 +87,7 @@ defmodule NewRelic do
   call `NewRelic.stop_transaction()` to mark the end of the transaction.
   """
   @spec stop_transaction() :: :ok
-  defdelegate stop_transaction(), to: NewRelic.Transaction
+  defdelegate stop_transaction(), to: NewRelic.OtherTransaction
 
   @doc """
   Define an "Other" transaction within the given block. The return value of
@@ -115,7 +114,30 @@ defmodule NewRelic do
   end
   ```
   """
-  defdelegate ignore_transaction(), to: NewRelic.Transaction
+  defdelegate ignore_transaction(), to: NewRelic.Transaction.Reporter
+
+  @doc """
+  Call to exclude the current process from being part of the Transaction.
+  """
+  defdelegate exclude_from_transaction(), to: NewRelic.Transaction.Reporter
+
+  @doc """
+  Advanced:
+  Call to manually connect the current process to another process's Transaction.
+
+  Only use this when there is no discoverable connection (ex: the process was
+  spawned without links or the logic is within a message handling callback).
+
+  This connection will persist until the process exits or
+  `NewRelic.disconnect_from_transaction()` is called.
+  """
+  defdelegate connect_to_transaction(pid), to: NewRelic.Transaction.Reporter
+
+  @doc """
+  Advanced:
+  Call to manually disconnect the current proccess from the current Transaction.
+  """
+  defdelegate disconnect_from_transaction(), to: NewRelic.Transaction.Reporter
 
   @doc """
   Store information about the type of work the current span is doing.
@@ -193,6 +215,12 @@ defmodule NewRelic do
   """
   defdelegate report_custom_metric(name, value),
     to: NewRelic.Harvest.Collector.Metric.Harvester
+
+  @doc false
+  defdelegate enable_erlang_trace, to: NewRelic.Transaction.ErlangTraceManager
+
+  @doc false
+  defdelegate disable_erlang_trace, to: NewRelic.Transaction.ErlangTraceManager
 
   @doc false
   defdelegate report_aggregate(meta, values), to: NewRelic.Aggregate.Reporter

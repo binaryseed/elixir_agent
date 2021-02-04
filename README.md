@@ -54,34 +54,20 @@ You can also configure these attributes via `ENV` vars, which helps keep secrets
 * `NEW_RELIC_APP_NAME`
 * `NEW_RELIC_LICENSE_KEY`
 
-## Instrumentation
+## Telemetry
 
-Out of the box, we will report Error Traces & some general BEAM VM stats. For further visibility, you'll need to add some basic instrumentation.
+Some common Elixir packages are auto-instrumented via [`telemetry`](https://github.com/beam-telemetry/telemetry)
 
-#### Telemetry
+* [`Plug`](https://github.com/elixir-plug/plug): See [NewRelic.Telemetry.Plug](https://hexdocs.pm/new_relic_agent/NewRelic.Telemetry.Plug.html) for details.
+* [`Phoenix`](https://github.com/phoenixframework/phoenix): See [NewRelic.Telemetry.Phoenix](https://hexdocs.pm/new_relic_agent/NewRelic.Telemetry.Phoenix.html) for details.
+* [`Ecto`](https://github.com/elixir-ecto/ecto): See [NewRelic.Telemetry.Ecto](https://hexdocs.pm/new_relic_agent/NewRelic.Telemetry.Ecto.html) for details.
+* [`Redix`](https://github.com/whatyouhide/redix): See [NewRelic.Telemetry.Redix](https://hexdocs.pm/new_relic_agent/NewRelic.Telemetry.Redix.html) for details.
 
-Some Elixir packages are auto-instrumented via [`telemetry`](https://github.com/beam-telemetry/telemetry)
-
-* [`Ecto`](https://github.com/elixir-ecto/ecto): See [NewRelic.Telemetry.Ecto](https://github.com/newrelic/elixir_agent/blob/master/lib/new_relic/telemetry/ecto.ex) for details.
-
-#### Plug
-
-Plug instrumentation is built into the agent.
-
-* `NewRelic.Transaction` enables rich Transaction Monitoring for a `Plug` pipeline. It's a macro that injects a few plugs and an error handler. Install it by adding `use NewRelic.Transaction` to your Plug module.
-
-```elixir
-defmodule MyPlug do
-  use Plug.Router
-  use NewRelic.Transaction
-  # ...
-end
-```
+## Custom Instrumentation
 
 #### Function Tracing
 
 * `NewRelic.Tracer` enables detailed Function tracing. Annotate a function and it'll show up as a span in Transaction Traces / Distributed Traces, and we'll collect aggregate stats about it. Install it by adding `use NewRelic.Tracer` to any module, and annotating any function with `@trace` module attribute
-
 
 ```elixir
 defmodule MyModule do
@@ -94,7 +80,9 @@ defmodule MyModule do
 end
 ```
 
-* `NewRelic.Tracer` also enables detailed External request tracing. A little more instrumentation is required to pass the trace context forward with Distributed Tracing.
+#### Distributed Tracing
+
+* Requests to other services can be traced with the combination of an additional outgoing header and an `:external` tracer.
 
 ```elixir
 defmodule MyExternalService do
@@ -111,7 +99,7 @@ end
 
 #### Pre-Instrumented Modules
 
-* `NewRelic.Instrumented.Mix.Task` To enable the Agent and record a Transaction during a `Mix.Task`, simply `use NewRelic.Instrumented.Mix.Task`. This will ensure the agent is properly started, record the Transaction, and shut down.
+* `NewRelic.Instrumented.Mix.Task` To enable the Agent and record an Other Transaction during a `Mix.Task`, simply `use NewRelic.Instrumented.Mix.Task`. This will ensure the agent is properly started, records the Transaction, and is shut down.
 
 ```elixir
 defmodule Mix.Tasks.Example do
@@ -133,7 +121,7 @@ HTTPoison.get("http://www.example.com")
 
 #### Other Transactions
 
-You may start an "Other" Transaction for non-HTTP related work. This could used be while consuming messages from a broker, for example.
+You may start an "Other" Transaction for non-HTTP related work. This could used be while consuming from a message queue, for example.
 
 To start an other transaction:
 
@@ -151,5 +139,4 @@ NewRelic.stop_transaction()
 
 There are a few adapters which leverage this agent to provide library / framework specific instrumentation. Note that these will eventually be replaced with `telemetry` based instrumentation.
 
-* `Phoenix` https://github.com/binaryseed/new_relic_phoenix
 * `Absinthe` https://github.com/binaryseed/new_relic_absinthe

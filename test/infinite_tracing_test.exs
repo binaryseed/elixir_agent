@@ -67,7 +67,6 @@ defmodule InfiniteTracingTest do
 
   defmodule TestPlugApp do
     use Plug.Router
-    use NewRelic.Transaction
 
     plug(:match)
     plug(:dispatch)
@@ -150,6 +149,11 @@ defmodule InfiniteTracingTest do
         attr[:name] == "Transaction Root Process"
       end)
 
+    cowboy_request_process_span =
+      Enum.find(spans, fn %{attributes: attr} ->
+        attr[:"parent.id"] == tx_root_process_span[:id]
+      end)
+
     function_span =
       Enum.find(spans, fn %{attributes: attr} ->
         attr[:name] == "InfiniteTracingTest.Traced.hello/0"
@@ -162,7 +166,7 @@ defmodule InfiniteTracingTest do
 
     task_span =
       Enum.find(spans, fn %{attributes: attr} ->
-        attr[:name] == "Process"
+        attr[:name] == "Process" && attr[:"parent.id"] == cowboy_request_process_span[:id]
       end)
 
     nested_span =
@@ -205,9 +209,10 @@ defmodule InfiniteTracingTest do
 
     # The rest of the Spans parenting follows their nesting
     assert tx_root_process_span.attributes[:"parent.id"] == tx_span[:id]
-    assert function_span.attributes[:"parent.id"] == tx_root_process_span[:id]
+    assert cowboy_request_process_span.attributes[:"parent.id"] == tx_root_process_span[:id]
+    assert function_span.attributes[:"parent.id"] == cowboy_request_process_span[:id]
     assert nested_function_span.attributes[:"parent.id"] == function_span[:id]
-    assert task_span.attributes[:"parent.id"] == tx_root_process_span[:id]
+    assert task_span.attributes[:"parent.id"] == cowboy_request_process_span[:id]
     assert nested_span.attributes[:"parent.id"] == task_span[:id]
 
     # With Infinite Tracing, we don't do sampled or priority on Spans
