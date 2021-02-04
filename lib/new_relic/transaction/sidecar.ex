@@ -4,7 +4,7 @@ defmodule NewRelic.Transaction.Sidecar do
 
   def setup_stores do
     :ets.new(__MODULE__.ContextStore, [:named_table, :set, :public, read_concurrency: true])
-    :ets.new(__MODULE__.LookupStore, [:named_table, :set, :public, read_concurrency: true])
+    NewRelic.Transaction.Sidecar.Pdict.init()
     :persistent_term.put({__MODULE__, :counter}, :counters.new(1, []))
   end
 
@@ -14,13 +14,15 @@ defmodule NewRelic.Transaction.Sidecar do
     # even in the case of an unexpected bug. Additionally, this
     # blocks the Transaction process the smallest amount possible
     {:ok, sidecar} = GenServer.start(__MODULE__, {self(), type})
+    IO.inspect {:start, self(), %{sidecar: sidecar}}
 
     store_sidecar(self(), sidecar)
-    set_sidecar(sidecar)
 
     receive do
       :sidecar_ready -> :ok
     end
+
+    set_sidecar(sidecar)
   end
 
   def init({parent, type}) do
@@ -101,6 +103,8 @@ defmodule NewRelic.Transaction.Sidecar do
       cleanup(lookup: self())
       clear_sidecar()
       cast(sidecar, :complete)
+    else
+      nope -> IO.inspect({:COMPLETE, :nope, nope})
     end
   end
 
@@ -146,6 +150,7 @@ defmodule NewRelic.Transaction.Sidecar do
 
   def handle_cast(:ignore, state) do
     cleanup(context: self())
+    IO.inspect({:ignore, LookupStore, state.parent})
     cleanup(lookup: state.parent)
     {:stop, :normal, state}
   end
@@ -214,60 +219,24 @@ defmodule NewRelic.Transaction.Sidecar do
   end
 
   defp clear_sidecar() do
-    Process.delete(:nr_tx_sidecar)
-  end
-
-  defp set_sidecar(nil) do
-    nil
+    # Process.delete(:nr_tx_sidecar)
+    :seq_trace.set_token([])
   end
 
   defp set_sidecar(pid) do
-    Process.put(:nr_tx_sidecar, pid)
-    pid
+    NewRelic.Transaction.Sidecar.Pdict.set_sidecar(pid)
   end
 
   defp get_sidecar() do
-    case Process.get(:nr_tx_sidecar) do
-      nil ->
-        sidecar =
-          lookup_sidecar_in(process_callers()) ||
-            lookup_sidecar_in(process_ancestors())
-
-        set_sidecar(sidecar)
-
-      :no_track ->
-        nil
-
-      pid ->
-        pid
-    end
+    NewRelic.Transaction.Sidecar.Pdict.get_sidecar()
   end
-
-  defp lookup_sidecar_in(processes) do
-    Enum.find_value(processes, &lookup_sidecar/1)
-  end
-
-  defp store_sidecar(_, nil), do: :no_sidecar
 
   defp store_sidecar(pid, sidecar) do
-    :ets.insert(__MODULE__.LookupStore, {pid, sidecar})
+    NewRelic.Transaction.Sidecar.Pdict.store_sidecar(pid, sidecar)
   end
 
   defp lookup_sidecar(pid) when is_pid(pid) do
-    case :ets.lookup(__MODULE__.LookupStore, pid) do
-      [{_, sidecar}] -> sidecar
-      [] -> nil
-    end
-  end
-
-  defp lookup_sidecar(_named_process), do: nil
-
-  defp process_callers() do
-    Process.get(:"$callers", []) |> Enum.reverse()
-  end
-
-  defp process_ancestors() do
-    Process.get(:"$ancestors", [])
+    NewRelic.Transaction.Sidecar.Pdict.lookup_sidecar(pid)
   end
 
   defp cleanup(context: sidecar) do
@@ -275,7 +244,7 @@ defmodule NewRelic.Transaction.Sidecar do
   end
 
   defp cleanup(lookup: root) do
-    :ets.delete(__MODULE__.LookupStore, root)
+    NewRelic.Transaction.Sidecar.Pdict.cleanup(root)
   end
 
   def counter() do

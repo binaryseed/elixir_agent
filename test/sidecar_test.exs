@@ -5,6 +5,9 @@ defmodule SidecarTest do
   alias NewRelic.Harvest.Collector
 
   test "Transaction.Sidecar" do
+    IO.inspect({:TEST, self(), "Transaction.Sidecar"})
+    :seq_trace.set_token([])
+
     TestHelper.restart_harvest_cycle(Collector.Metric.HarvestCycle)
 
     Task.async(fn ->
@@ -32,9 +35,9 @@ defmodule SidecarTest do
       end)
       |> Task.await()
 
-      sidecar = Process.get(:nr_tx_sidecar)
-
+      sidecar = NewRelic.Transaction.Sidecar.Pdict.get_sidecar()
       %{attributes: attributes} = :sys.get_state(sidecar)
+
       assert attributes[:foo] == "BAR"
       assert attributes[:baz] == "QUX"
       assert attributes[:blah] == "BLAH"
@@ -57,6 +60,9 @@ defmodule SidecarTest do
   end
 
   test "multiple transctions in a row in a process" do
+    IO.inspect({:TEST, self(), "multiple transctions in a row in a process"})
+    :seq_trace.set_token([])
+
     Task.async(fn ->
       # First
 
@@ -68,7 +74,7 @@ defmodule SidecarTest do
       end)
       |> Task.await()
 
-      sidecar = Process.get(:nr_tx_sidecar)
+      sidecar = NewRelic.Transaction.Sidecar.Pdict.get_sidecar()
       %{attributes: attributes} = :sys.get_state(sidecar)
 
       assert attributes[:foo1] == "BAR"
@@ -76,11 +82,11 @@ defmodule SidecarTest do
 
       Process.sleep(30)
 
-      assert :ets.member(Sidecar.LookupStore, self())
+      assert :ets.member(Sidecar.Pdict.LookupStore, self())
 
       NewRelic.stop_transaction()
 
-      refute :ets.member(Sidecar.LookupStore, self())
+      refute :ets.member(Sidecar.Pdict.LookupStore, self())
 
       # Second
 
@@ -97,7 +103,7 @@ defmodule SidecarTest do
 
       Process.sleep(10)
 
-      sidecar = Process.get(:nr_tx_sidecar)
+      sidecar = NewRelic.Transaction.Sidecar.Pdict.get_sidecar()
       %{attributes: attributes} = :sys.get_state(sidecar)
 
       refute attributes[:foo1]
@@ -112,19 +118,22 @@ defmodule SidecarTest do
   end
 
   test "ignored transaction cleans itself up" do
+    IO.inspect({:TEST, self(), "ignored transaction cleans itself up"})
+    :seq_trace.set_token([])
+
     Task.async(fn ->
       Task.async(fn ->
         NewRelic.start_transaction("Test", "ignored")
         NewRelic.add_attributes(foo1: "BAR")
 
-        assert :ets.member(Sidecar.LookupStore, self())
+        assert :ets.member(Sidecar.Pdict.LookupStore, self())
 
         NewRelic.ignore_transaction()
 
         # Ignored transactions get cleaned up async
-        Process.sleep(10)
+        Process.sleep(20)
 
-        refute :ets.member(Sidecar.LookupStore, self())
+        refute :ets.member(Sidecar.Pdict.LookupStore, self())
       end)
       |> Task.await()
     end)
@@ -132,8 +141,13 @@ defmodule SidecarTest do
   end
 
   test "manually connect an individual process" do
+    IO.inspect({:TEST, self(), "manually connect an individual process"})
+    :seq_trace.set_token([])
+
     Task.async(fn ->
       NewRelic.start_transaction("Test", "manual_connection")
+      sidecar = NewRelic.Transaction.Sidecar.Pdict.get_sidecar()
+      IO.inspect({:test, :sidecar, sidecar})
       NewRelic.add_attributes(foo1: "BAR")
 
       pid = self()
@@ -148,16 +162,18 @@ defmodule SidecarTest do
         send(pid, :carry_on)
       end)
 
+      assert :ets.member(Sidecar.Pdict.LookupStore, self())
+      sidecar = NewRelic.Transaction.Sidecar.Pdict.get_sidecar()
+
       assert_receive :carry_on
       Process.sleep(500)
-
-      assert :ets.member(Sidecar.LookupStore, self())
-      sidecar = Process.get(:nr_tx_sidecar)
 
       %{attributes: attributes} = :sys.get_state(sidecar)
       assert attributes[:foo1] == "BAR"
       assert attributes[:foo2] == "BAZ"
       refute attributes[:foo3]
+
+      NewRelic.stop_transaction()
     end)
     |> Task.await()
 

@@ -35,6 +35,8 @@ defmodule NewRelic.Transaction.Reporter do
     unless Transaction.Sidecar.tracking?() do
       Transaction.ErlangTrace.trace()
       Transaction.Sidecar.track(:other)
+    else
+      IO.inspect {:ALREADY_tracking!}
     end
   end
 
