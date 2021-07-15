@@ -165,12 +165,33 @@ defmodule NewRelic do
   @doc """
   Store information about the type of work the current span is doing.
 
-  Options:
   - `:generic, custom: attributes`
   - `:http, url: url, method: method, component: component`
   - `:datastore, statement: statement, instance: instance, address: address, hostname: hostname, component: component`
   """
   defdelegate set_span(type, attributes), to: NewRelic.DistributedTrace
+
+  @doc """
+  Start a span with a given name.
+
+  Options:
+  - `id` Required
+  - `name` Required
+  - `start_time` Optional: In native time, ie: System.system_time()
+  - `attributes` Keyword list
+  """
+  defdelegate start_span(options), to: NewRelic.DistributedTrace
+
+  @doc """
+  Stop a particular span.
+
+  Options:
+  - `id` Required
+  - `name` Optional: Overrides the name assigned at start
+  - `duration` Optional: In native monotonic time, ie: System.monotonic_time()
+  - `attributes` Keyword list
+  """
+  defdelegate stop_span(options), to: NewRelic.DistributedTrace
 
   @doc """
   You must manually instrument outgoing HTTP calls to connect them to a Distributed Trace.
