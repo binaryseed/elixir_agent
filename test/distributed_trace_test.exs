@@ -58,7 +58,7 @@ defmodule DistributedTraceTest do
         primary_application_id: 1441
       )
 
-    send(DistributedTrace.BackoffSampler, :reset)
+    DistributedTrace.BackoffSampler.reset()
 
     on_exit(fn ->
       reset_config.()
