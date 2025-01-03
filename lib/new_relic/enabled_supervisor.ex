@@ -20,6 +20,8 @@ defmodule NewRelic.EnabledSupervisor do
       NewRelic.Telemetry.Supervisor
     ]
 
+    NewRelic.OsMon.start()
+
     Supervisor.init(children, strategy: :one_for_one)
   end
 end
