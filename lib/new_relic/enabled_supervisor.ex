@@ -16,7 +16,8 @@ defmodule NewRelic.EnabledSupervisor do
       NewRelic.LogsInContext.Supervisor,
       NewRelic.Sampler.Supervisor,
       NewRelic.Error.Supervisor,
-      NewRelic.Aggregate.Supervisor
+      NewRelic.Aggregate.Supervisor,
+      NewRelic.Telemetry.Supervisor
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
